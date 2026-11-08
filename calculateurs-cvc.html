@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calculateurs CVC &amp; thermiques — Projeteur</title>
+<title>HVACalc — Calculateurs CVC &amp; thermiques</title>
 <style>
   :root{
     --bg:#0f172a; --card:#1e293b; --card2:#334155;
@@ -32,6 +32,7 @@
   .subtab.active{background:var(--card2); color:var(--accent); border-color:var(--accent);}
   .subpage{display:none;}
   .subpage.active{display:block;}
+  .stack{display:grid; grid-template-columns:1fr; gap:1.25rem;}
   .btn-secondary{background:var(--card2); color:var(--accent); border:1px solid var(--accent);}
   .btn-secondary:hover{filter:brightness(1.15);}
   .btn-small{width:auto; padding:.35rem .7rem; font-size:.78rem; margin-top:0; border-radius:8px;}
@@ -127,15 +128,15 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🧰 Calculateurs CVC &amp; thermiques</h1>
-  <p class="sub">Gaines, bruit de régénération, batterie CTA et déperditions de pièce — outils d'estimation réunis sur une seule page</p>
+  <h1>🧰 HVACalc</h1>
+  <p class="sub">Calculateurs CVC &amp; thermiques — gaines, bruit de régénération, batterie CTA, bilan thermique et hygrométrie sur une seule page</p>
 
   <!-- ============ NAVIGATION ============ -->
   <nav class="tabs">
     <button class="tab active" data-page="pBruit">🌀 Bruit de régénération</button>
     <button class="tab" data-page="pGaines">📐 Gaines de ventilation</button>
     <button class="tab" data-page="pCta">🔥 Batterie CTA</button>
-    <button class="tab" data-page="pDep">🌡️ Déperditions pièce</button>
+    <button class="tab" data-page="pDep">🌡️ Bilan thermique</button>
     <button class="tab" data-page="pHygro">💧 Hygrométrie</button>
   </nav>
 
@@ -334,6 +335,22 @@
 
         <div class="verdict" id="verdictCta">—</div>
 
+        <table class="band-table" style="margin-top:1rem">
+          <thead>
+            <tr><th>Vitesse frontale</th><th>1 m/s</th><th>1.5 m/s</th><th>2 m/s</th><th>2.5 m/s</th></tr>
+          </thead>
+          <tbody>
+            <tr id="ctaSecRow"><th>Section frontale (m²)</th></tr>
+            <tr id="ctaDimRow"><th>Dimensions (cm)</th></tr>
+          </tbody>
+        </table>
+
+        <p class="legend">
+          <b>Dimensionnement batterie</b> : section frontale S = Q<sub>air</sub>/v<sub>frontale</sub> ;
+          dimensions indiquées pour une section carrée (h = l = √S, arrondies au cm supérieur).
+          Vitesses frontales usuelles : 1–1.5 m/s silencieux/confort, 2–2.5 m/s standard tertiaire.
+        </p>
+
         <p class="legend">
           Puissance : P = ṁ·c<sub>p</sub>·ΔT avec ρ = 1.2 kg/m³ et c<sub>p</sub> = 1005 J/(kg·K).<br>
           ΔT = |T<sub>air entrée</sub> − T<sub>air souhaitée</sub>| — la puissance est toujours positive.<br>
@@ -353,7 +370,7 @@
 
   <!-- ============ SOUS-PAGE : SAISIE PIÈCE ============ -->
   <div class="subpage active" id="depPiece">
-  <div class="grid">
+  <div class="stack">
     <!-- ============ ENTRÉES ============ -->
     <div class="card">
       <h2>Paramètres d'entrée</h2>
@@ -432,6 +449,16 @@
       <input type="number" id="qAer" value="45" min="0" step="1">
       <div class="hint">Règle simple : 1 à 1,5 volume/h, ou ~30 m³/h par personne. Une pièce de 50 m³ avec 1 vol/h ≈ 50 m³/h. Mettre 0 pour ignorer.</div>
 
+      <div class="sep-title">Apports internes (chaleur gratuite)</div>
+      <table class="dep-table">
+        <thead>
+          <tr><th>Appareil / source</th><th>Puissance (W)</th><th>Qté</th><th></th></tr>
+        </thead>
+        <tbody id="apportsBody"></tbody>
+      </table>
+      <button type="button" class="btn-small btn-secondary" onclick="addApport()">+ Ajouter un apport</button>
+      <div class="hint">Puissances indicatives moyennes (DTU / EN 16798 / valeurs constructeurs) — modifiables librement. Les apports internes réduisent le besoin de chauffage en hiver (et s'ajoutent à la charge de climatisation en été).</div>
+
       <button onclick="ajouterPiece()">➕ Ajouter au cumul</button>
       <div class="err" id="errDep"></div>
     </div>
@@ -446,6 +473,8 @@
         <div class="kpi"><div class="v" id="kVent">—</div><div class="l">Par ventilation (W)</div></div>
         <div class="kpi"><div class="v" id="kRatio">—</div><div class="l">Ratio W/m² de pièce</div></div>
         <div class="kpi"><div class="v" id="kDt">—</div><div class="l">ΔT intérieur/extérieur (K)</div></div>
+        <div class="kpi"><div class="v" id="kApports">—</div><div class="l">Apports internes (W)</div></div>
+        <div class="kpi hl"><div class="v" id="kNet">—</div><div class="l">Besoin net chauffage (W)</div></div>
       </div>
 
       <table class="dep-table">
@@ -482,11 +511,13 @@
         <div class="kpi"><div class="v" id="cSurf">—</div><div class="l">Surface chauffée (m²)</div></div>
         <div class="kpi"><div class="v" id="cRatio">—</div><div class="l">Ratio global (W/m²)</div></div>
         <div class="kpi"><div class="v" id="cDT">—</div><div class="l">ΔT de base (K)</div></div>
+        <div class="kpi"><div class="v" id="cApports">—</div><div class="l">Total apports internes (W)</div></div>
+        <div class="kpi hl"><div class="v" id="cNet">—</div><div class="l">Besoin net total (W)</div></div>
       </div>
 
       <table class="dep-table">
         <thead>
-          <tr><th>N°</th><th>Pièce</th><th>Transmission</th><th>Ventilation</th><th>Total</th><th>Surface</th><th>W/m²</th><th>Part</th><th></th></tr>
+          <tr><th>N°</th><th>Pièce</th><th>Transmission</th><th>Ventilation</th><th>Total</th><th>Apports</th><th>Net</th><th>Surface</th><th>W/m²</th><th>Part</th><th></th></tr>
         </thead>
         <tbody id="cumulBody"></tbody>
       </table>
@@ -783,6 +814,17 @@ function calculerPuissance(){
   $("kPw").textContent = puissance.toFixed(0);
   $("kPk").textContent = (puissance / 1000).toFixed(2);
 
+  const vitesses = [1, 1.5, 2, 2.5];
+  let secHtml = "", dimHtml = "";
+  for(const vf of vitesses){
+    const S = debitAir / vf;
+    const cote = Math.ceil(Math.sqrt(S) * 100);
+    secHtml += `<td>${S.toFixed(3)}</td>`;
+    dimHtml += `<td>${cote} × ${cote} cm</td>`;
+  }
+  $("ctaSecRow").innerHTML = "<th>Section frontale (m²)</th>" + secHtml;
+  $("ctaDimRow").innerHTML = "<th>Dimensions (cm)</th>" + dimHtml;
+
   const vd = $("verdictCta");
   let cls, txt;
   if (puissance <= 0){
@@ -803,6 +845,89 @@ function calculerPuissance(){
 /* ================================================= */
 
 const pieces = [];
+
+/* ===== Apports internes ===== */
+const APPAREILS = [
+  {id:"pers",    label:"Personne (travail léger, assis)", w:100},
+  {id:"persact", label:"Personne (activité modérée)",     w:150},
+  {id:"pcfixe",  label:"PC fixe (unité centrale + écran)", w:150},
+  {id:"pclap",   label:"PC portable",                    w:40},
+  {id:"ecran",   label:"Écran / moniteur",               w:30},
+  {id:"imprim",  label:"Imprimante laser (moyenne)",     w:300},
+  {id:"copieur", label:"Photocopieur",                   w:400},
+  {id:"serveur", label:"Serveur / baie informatique",    w:500},
+  {id:"tv",      label:"Téléviseur",                     w:100},
+  {id:"videopr", label:"Vidéoprojecteur",                w:300},
+  {id:"led",     label:"Luminaire LED",                  w:15},
+  {id:"fluo",    label:"Luminaire fluorescent (tube)",   w:36},
+  {id:"halo",    label:"Luminaire halogène / incandescent", w:50},
+  {id:"frigo",   label:"Réfrigérateur / congélateur (moyenne)", w:100},
+  {id:"congel",  label:"Coffre de congélation",          w:150},
+  {id:"four",    label:"Four (utilisation moyenne)",     w:200},
+  {id:"plaque",  label:"Plaque de cuisson (moyenne)",    w:300},
+  {id:"cafet",   label:"Machine à café",                w:800},
+  {id:"bouill",  label:"Bouilloire / micro-ondes",      w:1000},
+  {id:"moteur",  label:"Moteur (pompe, ventilateur)",   w:100},
+  {id:"elev",    label:"Ascenseur / monte-charge (moteur, moyenne)", w:700},
+  {id:"aquarium", label:"Aquarium",                      w:150},
+  {id:"autre",   label:"Autre (saisir la puissance)",    w:0},
+];
+
+let apports = [{id:"pers", w:100, q:1}];
+
+function sommeApports(list){
+  return list.reduce((s,a)=>s + (a.w||0) * (a.q||0), 0);
+}
+
+function addApport(){
+  apports.push({id:"autre", w:0, q:1});
+  renderApports();
+}
+
+function delApport(i){
+  apports.splice(i,1);
+  if(apports.length === 0){ apports.push({id:"autre", w:0, q:1}); }
+  renderApports();
+}
+
+function renderApports(){
+  const body = $("apportsBody");
+  body.innerHTML = apports.map((a,i)=>{
+    const opts = APPAREILS.map(app=>`<option value="${app.id}" ${app.id===a.id?"selected":""}>${app.label}</option>`).join("");
+    return `<tr>
+      <td><select data-apid="${i}">${opts}</select></td>
+      <td><input type="number" data-apw="${i}" value="${a.w}" min="0" step="10" style="width:90px"></td>
+      <td><input type="number" data-apq="${i}" value="${a.q}" min="0" step="1" style="width:70px"></td>
+      <td><button class="btn-small btn-danger" data-apdel="${i}">✕</button></td>
+    </tr>`;
+  }).join("");
+
+  body.querySelectorAll("[data-apid]").forEach(sel=>{
+    sel.addEventListener("change", ()=>{
+      const i = parseInt(sel.dataset.apid,10);
+      const app = APPAREILS.find(x=>x.id===sel.value);
+      apports[i].id = sel.value;
+      apports[i].w = app ? app.w : 0;
+      renderApports();
+      computeDep();
+    });
+  });
+  body.querySelectorAll("[data-apw]").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      apports[parseInt(inp.dataset.apw,10)].w = parseFloat(inp.value)||0;
+      computeDep();
+    });
+  });
+  body.querySelectorAll("[data-apq]").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      apports[parseInt(inp.dataset.apq,10)].q = parseFloat(inp.value)||0;
+      computeDep();
+    });
+  });
+  body.querySelectorAll("[data-apdel]").forEach(btn=>{
+    btn.addEventListener("click", ()=>delApport(parseInt(btn.dataset.apdel,10)));
+  });
+}
 
 function computeDep(){
   const err = $("errDep");
@@ -864,6 +989,11 @@ function computeDep(){
   $("kVent").textContent    = vent.toFixed(0);
   $("kRatio").textContent   = surfPiece > 0 ? (total/surfPiece).toFixed(1) : "—";
   $("kDt").textContent      = dT.toFixed(1);
+
+  const apportsW = sommeApports(apports);
+  const net = total - apportsW;
+  $("kApports").textContent = apportsW.toFixed(0);
+  $("kNet").textContent    = net.toFixed(0);
 
   const maxD = Math.max(...lignes.map(l=>l.d), vent, 1);
   const fmtBar = v => `<span class="bar" style="width:${Math.max(2,(v/maxD)*40)}px"></span>`;
@@ -934,6 +1064,13 @@ function ajouterPiece(){
     nom: $("pieceNom").value.trim() || `Pièce ${num}`,
     trans, vent, total, surf,
     tInt, tExt, qAer,
+    apports: apports.map(a=>({
+      id:a.id,
+      label:(APPAREILS.find(x=>x.id===a.id)||{label:"Autre"}).label,
+      w:a.w||0, q:a.q||0
+    })),
+    apportsW: sommeApports(apports),
+    net: total - sommeApports(apports),
     murS: parseFloat($("murS").value)||0, murU: parseFloat($("murU").value)||0,
     solS: parseFloat($("solS").value)||0, solU: parseFloat($("solU").value)||0,
     toitS: parseFloat($("toitS").value)||0, toitU: parseFloat($("toitU").value)||0,
@@ -965,7 +1102,7 @@ function renderCumul(){
   $("cNb").textContent = pieces.length || "—";
 
   if(pieces.length === 0){
-    ["cTotal","cTotalKw","cTrans","cVent","cSurf","cRatio","cDT"].forEach(id=>$(id).textContent="—");
+    ["cTotal","cTotalKw","cTrans","cVent","cSurf","cRatio","cDT","cApports","cNet"].forEach(id=>$(id).textContent="—");
     $("cumulBody").innerHTML = "";
     const vd = $("verdictCumul");
     vd.className = "verdict";
@@ -987,11 +1124,18 @@ function renderCumul(){
   $("cRatio").textContent   = surf > 0 ? (total/surf).toFixed(1) : "—";
   $("cDT").textContent      = dT.toFixed(1);
 
+  const apportsTot = pieces.reduce((s,p)=>s+(p.apportsW||0), 0);
+  const netTot = total - apportsTot;
+  $("cApports").textContent = apportsTot.toFixed(0);
+  $("cNet").textContent    = netTot.toFixed(0);
+
   let html = "";
   for(const p of pieces){
     const part = total > 0 ? (p.total/total*100) : 0;
     const r = p.surf > 0 ? (p.total/p.surf).toFixed(1) : "—";
-    html += `<tr><th>${p.num}</th><td>${p.nom}</td><td class="num">${p.trans.toFixed(0)} W</td><td class="num">${p.vent.toFixed(0)} W</td><td class="num">${p.total.toFixed(0)} W</td><td class="num">${p.surf > 0 ? p.surf.toFixed(1)+" m²" : "—"}</td><td class="num">${r}</td><td class="num">${part.toFixed(0)}%</td><td><button class="btn-small btn-danger" data-del="${p.num}">✕</button></td></tr>`;
+    const ap = p.apportsW || 0;
+    const net = p.net !== undefined ? p.net : p.total - ap;
+    html += `<tr><th>${p.num}</th><td>${p.nom}</td><td class="num">${p.trans.toFixed(0)} W</td><td class="num">${p.vent.toFixed(0)} W</td><td class="num">${p.total.toFixed(0)} W</td><td class="num">${ap.toFixed(0)} W</td><td class="num">${net.toFixed(0)} W</td><td class="num">${p.surf > 0 ? p.surf.toFixed(1)+" m²" : "—"}</td><td class="num">${r}</td><td class="num">${part.toFixed(0)}%</td><td><button class="btn-small btn-danger" data-del="${p.num}">✕</button></td></tr>`;
   }
   $("cumulBody").innerHTML = html;
 
@@ -1009,6 +1153,9 @@ function renderCumul(){
   } else {
     cls="ok"; txt = `Puissance totale à installer : ${total.toFixed(0)} W (${(total/1000).toFixed(2)} kW)`;
   }
+  if(apportsTot > 0){
+    txt += ` · Besoin net après apports internes : ${netTot.toFixed(0)} W`;
+  }
   vd.className = "verdict show " + cls;
   vd.textContent = txt;
 }
@@ -1016,15 +1163,17 @@ function renderCumul(){
 function exportCSV(){
   if(pieces.length === 0){ return; }
   const esc = s => `"${String(s).replace(/"/g,'""')}"`;
-  let csv = "N°;Pièce;Transmission (W);Ventilation (W);Total (W);Surface (m²);W/m²;T int (°C);T ext (°C)\n";
+  let csv = "N°;Pièce;Transmission (W);Ventilation (W);Total (W);Apports (W);Net (W);Surface (m²);W/m²;T int (°C);T ext (°C)\n";
   for(const p of pieces){
     const r = p.surf > 0 ? (p.total/p.surf).toFixed(1) : "";
-    csv += [p.num, esc(p.nom), p.trans.toFixed(0), p.vent.toFixed(0), p.total.toFixed(0), p.surf.toFixed(1), r, p.tInt, p.tExt].join(";") + "\n";
+    const ap = p.apportsW || 0;
+    csv += [p.num, esc(p.nom), p.trans.toFixed(0), p.vent.toFixed(0), p.total.toFixed(0), ap.toFixed(0), (p.total-ap).toFixed(0), p.surf.toFixed(1), r, p.tInt, p.tExt].join(";") + "\n";
   }
   const trans = pieces.reduce((s,p)=>s+p.trans,0);
   const vent = pieces.reduce((s,p)=>s+p.vent,0);
   const surf = pieces.reduce((s,p)=>s+p.surf,0);
-  csv += ["", esc("TOTAL"), trans.toFixed(0), vent.toFixed(0), (trans+vent).toFixed(0), surf.toFixed(1), surf>0?((trans+vent)/surf).toFixed(1):"", "", ""].join(";") + "\n";
+  const apportsTot = pieces.reduce((s,p)=>s+(p.apportsW||0), 0);
+  csv += ["", esc("TOTAL"), trans.toFixed(0), vent.toFixed(0), (trans+vent).toFixed(0), apportsTot.toFixed(0), (trans+vent-apportsTot).toFixed(0), surf.toFixed(1), surf>0?((trans+vent)/surf).toFixed(1):"", "", ""].join(";") + "\n";
   const blob = new Blob(["\ufeff" + csv], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -1048,6 +1197,7 @@ $("btnExport").addEventListener("click", exportCSV);
   $(id).addEventListener("change", computeDep);
 });
 
+renderApports();
 computeDep();
 renderCumul();
 
