@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HVACalc — Calculateurs CVC &amp; thermiques</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --card2:#334155;
+    --txt:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171;
+    --blue:#60a5fa; --green:#4ade80;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:linear-gradient(160deg,#0f172a 0%,#1e293b 100%);
+    color:var(--txt); min-height:100vh; padding:2rem 1rem;
+  }
+  .wrap{max-width:960px; margin:0 auto;}
+  h1{font-size:1.5rem; margin-bottom:.25rem;}
+  .sub{color:var(--muted); font-size:.9rem; margin-bottom:1.25rem;}
+
+  /* ============ SOUS-ONGLET DÉPERDITIONS ============ */
+  .subtabs{display:flex; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap;}
+  .subtab{
+    background:var(--card); color:var(--muted);
+    border:1px solid #475569; border-radius:10px;
+    padding:.5rem .9rem; cursor:pointer; font-size:.85rem; font-weight:600; font-family:inherit;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .subtab:hover{color:var(--txt);}
+  .subtab.active{background:var(--card2); color:var(--accent); border-color:var(--accent);}
+  .subpage{display:none;}
+  .subpage.active{display:block;}
+  .stack{display:grid; grid-template-columns:1fr; gap:1.25rem;}
+  .btn-secondary{background:var(--card2); color:var(--accent); border:1px solid var(--accent);}
+  .btn-secondary:hover{filter:brightness(1.15);}
+  .btn-small{width:auto; padding:.35rem .7rem; font-size:.78rem; margin-top:0; border-radius:8px;}
+  .btn-danger{background:var(--card2); color:var(--bad); border:1px solid var(--bad);}
+  .btn-danger:hover{filter:brightness(1.15);}
+  input[type=text]{
+    width:100%; padding:.55rem .7rem; border-radius:8px; border:1px solid #475569;
+    background:var(--card2); color:var(--txt); font-size:1rem;
+  }
+
+  /* ============ NAVIGATION ============ */
+  .tabs{
+    display:flex; gap:.5rem; margin-bottom:1.25rem; flex-wrap:wrap;
+  }
+  .tab{
+    flex:1; min-width:180px;
+    background:var(--card); color:var(--muted);
+    border:1px solid #475569; border-radius:12px;
+    padding:.7rem 1rem; cursor:pointer; text-align:center;
+    font-size:.9rem; font-weight:600; font-family:inherit;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .tab:hover{color:var(--txt);}
+  .tab.active{
+    background:var(--card2); color:var(--accent); border-color:var(--accent);
+  }
+  .page{display:none;}
+  .page.active{display:block;}
+
+  /* ============ MISE EN PAGE COMMUNE ============ */
+  .grid{display:grid; grid-template-columns:340px 1fr; gap:1.25rem;}
+  @media(max-width:760px){.grid{grid-template-columns:1fr;}}
+  .card{
+    background:var(--card); border:1px solid #475569; border-radius:14px;
+    padding:1.25rem;
+  }
+  .card h2{font-size:1rem; margin-bottom:1rem; color:var(--accent);}
+  label{display:block; font-size:.8rem; color:var(--muted); margin:.9rem 0 .3rem;}
+  input[type=number], select{
+    width:100%; padding:.55rem .7rem; border-radius:8px; border:1px solid #475569;
+    background:var(--card2); color:var(--txt); font-size:1rem;
+  }
+  input:focus,select:focus{outline:2px solid var(--accent);}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:.75rem;}
+  .kpis{display:grid; grid-template-columns:repeat(2,1fr); gap:.75rem; margin-bottom:1.25rem;}
+  .kpi{
+    background:var(--card2); border-radius:10px; padding:.75rem .9rem; text-align:center;
+  }
+  .kpi .v{font-size:1.25rem; font-weight:700; color:var(--accent);}
+  .kpi .l{font-size:.72rem; color:var(--muted); margin-top:.2rem;}
+  .kpi.hl .v{font-size:1.6rem;}
+  .band-table{width:100%; border-collapse:collapse; font-size:.85rem;}
+  .band-table th,.band-table td{
+    padding:.45rem .4rem; text-align:center; border-bottom:1px solid #475569;
+  }
+  .band-table th{color:var(--muted); font-weight:600;}
+  .legend{font-size:.75rem; color:var(--muted); margin-top:.9rem; line-height:1.5;}
+  .verdict{
+    margin-top:1rem; padding:.75rem 1rem; border-radius:10px;
+    font-size:.9rem; font-weight:600; display:none;
+  }
+  .verdict.show{display:block;}
+  .verdict.ok{background:rgba(74,222,128,.12); color:var(--ok); border:1px solid var(--ok);}
+  .verdict.warn{background:rgba(251,191,36,.12); color:var(--warn); border:1px solid var(--warn);}
+  .verdict.bad{background:rgba(248,113,113,.12); color:var(--bad); border:1px solid var(--bad);}
+  .chart{display:flex; align-items:flex-end; gap:8px; height:120px; margin-top:.5rem;}
+  .chart .col{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end;}
+  .chart .bar-el{width:100%; border-radius:4px 4px 0 0; background:linear-gradient(180deg,#38bdf8,#0ea5e9);}
+  .chart .f{font-size:.65rem; color:var(--muted);}
+  .err{color:var(--bad); font-size:.85rem; margin-top:.75rem; display:none;}
+  button{
+    margin-top:1.1rem; width:100%; padding:.65rem 1rem;
+    background:var(--accent); color:#0f172a; font-weight:700; font-size:1rem;
+    border:none; border-radius:10px; cursor:pointer; font-family:inherit;
+  }
+  button:hover{filter:brightness(1.1);}
+  .hint{font-size:.75rem; color:var(--muted); font-style:italic; margin-top:.2rem;}
+  .lbl-blue{color:var(--blue);}
+  .lbl-green{color:var(--green);}
+  .input-flex{display:flex; align-items:center; gap:.6rem;}
+  .input-flex span{font-size:.8rem; color:var(--muted); white-space:nowrap;}
+
+  /* ============ DÉPERDITIONS ============ */
+  .row3{display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:.6rem; align-items:end;}
+  .row3 label{margin-top:.6rem;}
+  .sep-title{font-size:.75rem; color:var(--accent); font-weight:600; margin-top:1.1rem;}
+  .dep-table{width:100%; border-collapse:collapse; font-size:.85rem; margin-top:.25rem;}
+  .dep-table th,.dep-table td{padding:.45rem .4rem; text-align:center; border-bottom:1px solid #475569;}
+  .dep-table th{color:var(--muted); font-weight:600; text-align:left;}
+  .dep-table td.num{text-align:right;}
+  .bar{height:10px; border-radius:5px; background:var(--accent); display:inline-block; vertical-align:middle;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧰 HVACalc</h1>
+  <p class="sub">Calculateurs CVC &amp; thermiques — gaines, bruit de régénération, batterie CTA, bilan thermique et hygrométrie sur une seule page</p>
+
+  <!-- ============ NAVIGATION ============ -->
+  <nav class="tabs">
+    <button class="tab active" data-page="pBruit">🌀 Bruit de régénération</button>
+    <button class="tab" data-page="pGaines">📐 Calculs Vt PdC dB(A) gaine de ventilation</button>
+    <button class="tab" data-page="pCta">🔥 Batterie CTA</button>
+    <button class="tab" data-page="pDep">🌡️ Bilan thermique</button>
+    <button class="tab" data-page="pHygro">💧 Hygrométrie</button>
+  </nav>
+
+  <!-- ================================================= -->
+  <!-- PAGE 1 : BRUIT DE RÉGÉNÉRATION (modèle) -->
+  <!-- ================================================= -->
+  <section class="page active" id="pBruit">
+    <div class="grid">
+      <div class="card">
+        <h2>Paramètres d'entrée</h2>
+        <label>Débit d'air Q (m³/h)</label>
+        <input type="number" id="q" value="1000" min="1" step="10">
+
+        <label>Vitesse d'air v (m/s)</label>
+        <input type="number" id="v" value="5" min="0.1" step="0.5">
+        <div class="hint">Typique : 4–6 m/s (confort), 7–10 m/s (tertiaire)</div>
+
+        <label>Forme de la gaine</label>
+        <select id="shape">
+          <option value="round">Circulaire</option>
+          <option value="rect">Rectangulaire</option>
+        </select>
+
+        <div class="row" id="rectInputs" style="display:none">
+          <div>
+            <label>Largeur a (m)</label>
+            <input type="number" id="a" value="0.4" min="0.05" step="0.05">
+          </div>
+          <div>
+            <label>Hauteur b (m)</label>
+            <input type="number" id="b" value="0.2" min="0.05" step="0.05">
+          </div>
+        </div>
+
+        <div class="err" id="err"></div>
+      </div>
+
+      <div class="card">
+        <h2>Résultats</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="kDim">—</div><div class="l" id="kDimLbl">Diamètre équivalent</div></div>
+          <div class="kpi"><div class="v" id="kS">—</div><div class="l">Section (m²)</div></div>
+          <div class="kpi"><div class="v" id="kVr">—</div><div class="l">Vitesse réelle (m/s)</div></div>
+          <div class="kpi hl"><div class="v" id="kLwa">—</div><div class="l">Niveau global L<sub>WA</sub> dB(A)</div></div>
+        </div>
+
+        <div class="chart" id="chart"></div>
+
+        <table class="band-table">
+          <thead>
+            <tr><th>Hz</th><th>63</th><th>125</th><th>250</th><th>500</th><th>1k</th><th>2k</th><th>4k</th><th>8k</th></tr>
+          </thead>
+          <tbody>
+            <tr id="rLw"><th>L<sub>W</sub> (dB)</th></tr>
+            <tr id="rLwa"><th>L<sub>WA</sub> (dB(A))</th></tr>
+          </tbody>
+        </table>
+
+        <div class="verdict" id="verdict">—</div>
+
+        <p class="legend">
+          <b>L<sub>W</sub></b> = puissance acoustique de régénération (bruit généré par la turbulence de l'air
+          dans la gaine, hors bruit du ventilateur).<br>
+          Formule : L<sub>W</sub> ≈ K + 10·log(S) + 60·log(v) — gaine rectiligne en régime turbulent établi.<br>
+          Ordres de grandeur de confort : ≤ 35 dB(A) logements, ≤ 45 dB(A) tertiaire (à comparer à la cible
+          acoustique du local, en déduisant l'atténuation de la gaine).
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================= -->
+  <!-- PAGE 2 : GAINES DE VENTILATION -->
+  <!-- ================================================= -->
+  <section class="page" id="pGaines">
+    <div class="grid">
+      <div class="card">
+        <h2>Paramètres d'entrée</h2>
+        <label>Débit (m³/h)</label>
+        <input type="number" id="debit" placeholder="Entrez le débit en m³/h" step="0.01">
+
+        <label>Forme de la gaine</label>
+        <select id="forme">
+          <option value="circ">Circulaire (Ø normalisé)</option>
+          <option value="rect">Rectangulaire</option>
+        </select>
+
+        <div id="circInputs">
+          <label>Diamètre normalisé (mm)</label>
+          <select id="diamNorm">
+            <option value="80">80</option>
+            <option value="100">100</option>
+            <option value="125">125</option>
+            <option value="160">160</option>
+            <option value="200">200</option>
+            <option value="250">250</option>
+            <option value="315">315</option>
+            <option value="355">355</option>
+            <option value="400">400</option>
+            <option value="450">450</option>
+            <option value="500">500</option>
+            <option value="560">560</option>
+            <option value="630">630</option>
+            <option value="710">710</option>
+            <option value="800">800</option>
+            <option value="900">900</option>
+            <option value="1000">1000</option>
+            <option value="1120">1120</option>
+            <option value="1250">1250</option>
+          </select>
+          <div class="hint">Diamètres spiralés standards du commerce européen (EN 1506 / série Renard)</div>
+        </div>
+
+        <div class="row" id="rectInputsGaines" style="display:none">
+          <div>
+            <label>Hauteur (cm)</label>
+            <input type="number" id="hauteur" placeholder="Hauteur" step="0.01">
+          </div>
+          <div>
+            <label>Largeur (cm)</label>
+            <input type="number" id="largeur" placeholder="Largeur" step="0.01">
+          </div>
+        </div>
+
+        <label>Type de conduit</label>
+        <select id="materiau">
+          <option value="galva">Galvanisé</option>
+          <option value="inox">Inox</option>
+          <option value="pps">PPS</option>
+          <option value="souple-canele">Souple canelé</option>
+        </select>
+
+        <button onclick="calculerGaines()">Calculer</button>
+        <div class="err" id="errGaines"></div>
+      </div>
+
+      <div class="card">
+        <h2>Résultats</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="resDiam">—</div><div class="l">Diamètre retenu (cm)</div></div>
+          <div class="kpi"><div class="v" id="resVitesse">—</div><div class="l">Vitesse d'air (m/s)</div></div>
+          <div class="kpi"><div class="v" id="resPerte">—</div><div class="l">Perte de charge (Pa/m)</div></div>
+          <div class="kpi hl"><div class="v" id="resBruit">—</div><div class="l">Bruit de régénération dB(A)</div></div>
+        </div>
+
+        <div class="verdict" id="verdictGaines">—</div>
+
+        <p class="legend">
+          Gaine rectangulaire : Ø équivalent = 1.3·(h·l)<sup>0.625</sup> / (h+l)<sup>0.25</sup> — tout ratio h/l est accepté.<br>
+          Gaine circulaire : Ø normalisé du commerce (EN 1506 / série Renard : 80–1250 mm).<br>
+          Perte de charge linéaire : Δp = λ·(1/D)·(ρ·v²/2) avec λ selon le matériau
+          (galva 0.02, inox 0.018, PPS 0.022, souple canelé 0.025).<br>
+          Bruit : L<sub>W</sub> = 10·log(ρ·v³·A) + K — estimation sur la section réelle de la gaine.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================= -->
+  <!-- PAGE 3 : BATTERIE CTA -->
+  <!-- ================================================= -->
+  <section class="page" id="pCta">
+    <div class="grid">
+      <div class="card">
+        <h2>Paramètres d'entrée</h2>
+        <label class="lbl-blue">Température aller de l'eau (°C)</label>
+        <input type="number" id="tempAller" placeholder="Ex : 40" step="0.1">
+
+        <label class="lbl-blue">Température retour de l'eau (°C)</label>
+        <input type="number" id="tempRetour" placeholder="Ex : 30" step="0.1">
+
+        <label class="lbl-green">Température d'entrée de l'air (°C)</label>
+        <input type="number" id="tempAirEntree" placeholder="Ex : 25" step="0.1">
+
+        <label class="lbl-green">Température souhaitée de l'air (°C)</label>
+        <input type="number" id="tempAirSouhaitee" placeholder="Ex : 20" step="0.1">
+
+        <label>Débit d'air (m³/h)</label>
+        <div class="input-flex">
+          <input type="number" id="debitAirMH" placeholder="Ex : 5400" step="1">
+          <span class="hint" id="debitAirMSDisplay">0 m³/s</span>
+        </div>
+
+        <button onclick="calculerPuissance()">Calculer la puissance</button>
+        <div class="err" id="errCta"></div>
+      </div>
+
+      <div class="card">
+        <h2>Résultats</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="kDeltaT">—</div><div class="l">ΔT air (K)</div></div>
+          <div class="kpi"><div class="v" id="kDebitM">—</div><div class="l">Débit massique (kg/s)</div></div>
+          <div class="kpi hl"><div class="v" id="kPw">—</div><div class="l">Puissance (W)</div></div>
+          <div class="kpi hl"><div class="v" id="kPk">—</div><div class="l">Puissance (kW)</div></div>
+        </div>
+
+        <div class="verdict" id="verdictCta">—</div>
+
+        <table class="band-table" style="margin-top:1rem">
+          <thead>
+            <tr><th>Vitesse frontale</th><th>1 m/s</th><th>1.5 m/s</th><th>2 m/s</th><th>2.5 m/s</th></tr>
+          </thead>
+          <tbody>
+            <tr id="ctaSecRow"><th>Section frontale (m²)</th></tr>
+            <tr id="ctaDimRow"><th>Dimensions (cm)</th></tr>
+          </tbody>
+        </table>
+
+        <p class="legend">
+          <b>Dimensionnement batterie</b> : section frontale S = Q<sub>air</sub>/v<sub>frontale</sub> ;
+          dimensions indiquées pour une section carrée (h = l = √S, arrondies au cm supérieur).
+          Vitesses frontales usuelles : 1–1.5 m/s silencieux/confort, 2–2.5 m/s standard tertiaire.
+        </p>
+
+        <p class="legend">
+          Puissance : P = ṁ·c<sub>p</sub>·ΔT avec ρ = 1.2 kg/m³ et c<sub>p</sub> = 1005 J/(kg·K).<br>
+          ΔT = |T<sub>air entrée</sub> − T<sub>air souhaitée</sub>| — la puissance est toujours positive.<br>
+          Les températures d'eau aller/retour servent de référence pour le régime de batterie.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="pDep">
+
+  <!-- ============ SOUS-ONGLET : PIÈCE ============ -->
+  <div class="subtabs" id="depSubtabs">
+    <button class="subtab active" data-sub="depPiece">➕ Ajouter / modifier une pièce</button>
+    <button class="subtab" data-sub="depSynthese">📊 Cumul toutes pièces</button>
+  </div>
+
+  <!-- ============ SOUS-PAGE : SAISIE PIÈCE ============ -->
+  <div class="subpage active" id="depPiece">
+  <div class="stack">
+    <!-- ============ ENTRÉES ============ -->
+    <div class="card">
+      <h2>Paramètres d'entrée</h2>
+
+      <div class="sep-title">Pièce</div>
+      <div class="row3">
+        <div>
+          <label>N° de pièce</label>
+          <input type="number" id="pieceNum" value="1" min="1" step="1">
+        </div>
+        <div>
+          <label>Nom de la pièce</label>
+          <input type="text" id="pieceNom" placeholder="Ex : Séjour" maxlength="40">
+        </div>
+      </div>
+      <div class="hint">Chaque pièce est identifiée par son numéro ; resaisir un numéro existant modifie la pièce.</div>
+      <div class="hint" id="piecesAttr"><b>Numéros déjà attribués :</b> aucun pour l'instant</div>
+
+      <div class="sep-title">Températures</div>
+      <label>Température intérieure (°C)</label>
+      <input type="number" id="tInt" value="20" step="0.5">
+      <label>Température extérieure de base (°C)</label>
+      <input type="number" id="tExt" value="-7" step="0.5">
+      <div class="hint">Température de base réglementaire selon la zone climatique (ex. : -7 °C Paris, -2 °C Nice, -15 °C Strasbourg)</div>
+
+      <div class="sep-title">Parois opaques — surface et coefficient U (W/m²·K)</div>
+
+      <div class="row3">
+        <div>
+          <label>Murs extérieurs</label>
+          <input type="number" id="murS" value="12" min="0" step="0.1">
+        </div>
+        <div>
+          <label>U murs</label>
+          <input type="number" id="murU" value="0.35" min="0" step="0.01">
+        </div>
+      </div>
+
+      <div class="row3">
+        <div>
+          <label>Plancher bas</label>
+          <input type="number" id="solS" value="15" min="0" step="0.1">
+        </div>
+        <div>
+          <label>U plancher</label>
+          <input type="number" id="solU" value="0.25" min="0" step="0.01">
+        </div>
+      </div>
+
+      <div class="row3">
+        <div>
+          <label>Plafond / toit</label>
+          <input type="number" id="toitS" value="15" min="0" step="0.1">
+        </div>
+        <div>
+          <label>U plafond</label>
+          <input type="number" id="toitU" value="0.20" min="0" step="0.01">
+        </div>
+      </div>
+
+      <div class="sep-title">Menuiseries — surface et U (W/m²·K)</div>
+      <div class="row3">
+        <div>
+          <label>Fenêtres / baies (m²)</label>
+          <input type="number" id="fenS" value="4" min="0" step="0.1">
+        </div>
+        <div>
+          <label>U fenêtres</label>
+          <input type="number" id="fenU" value="1.4" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="hint">Ordres de grandeur U : simple vitrage 5.0 · double vitrage 2.5 · double VIR 1.4 · triple VIR 0.8</div>
+
+      <div class="sep-title">Renouvellement d'air</div>
+      <label>Débit de ventilation (m³/h)</label>
+      <input type="number" id="qAer" value="45" min="0" step="1">
+      <div class="hint">Règle simple : 1 à 1,5 volume/h, ou ~30 m³/h par personne. Une pièce de 50 m³ avec 1 vol/h ≈ 50 m³/h. Mettre 0 pour ignorer.</div>
+
+      <div class="sep-title">Apports internes (chaleur gratuite)</div>
+      <table class="dep-table">
+        <thead>
+          <tr><th>Appareil / source</th><th>Puissance (W)</th><th>Qté</th><th></th></tr>
+        </thead>
+        <tbody id="apportsBody"></tbody>
+      </table>
+      <button type="button" class="btn-small btn-secondary" onclick="addApport()">+ Ajouter un apport</button>
+      <div class="hint">Puissances indicatives moyennes (DTU / EN 16798 / valeurs constructeurs) — modifiables librement. Les apports internes réduisent le besoin de chauffage en hiver (et s'ajoutent à la charge de climatisation en été).</div>
+
+      <button onclick="ajouterPiece()">➕ Ajouter au cumul</button>
+      <div class="err" id="errDep"></div>
+    </div>
+
+    <!-- ============ RÉSULTATS ============ -->
+    <div class="card">
+      <h2>Résultats</h2>
+      <div class="kpis">
+        <div class="kpi hl"><div class="v" id="kTotal">—</div><div class="l">Déperditions totales (W)</div></div>
+        <div class="kpi hl"><div class="v" id="kTotalKw">—</div><div class="l">Puissance chauffage (kW)</div></div>
+        <div class="kpi"><div class="v" id="kTrans">—</div><div class="l">Par transmission (W)</div></div>
+        <div class="kpi"><div class="v" id="kVent">—</div><div class="l">Par ventilation (W)</div></div>
+        <div class="kpi"><div class="v" id="kRatio">—</div><div class="l">Ratio W/m² de pièce</div></div>
+        <div class="kpi"><div class="v" id="kDt">—</div><div class="l">ΔT intérieur/extérieur (K)</div></div>
+        <div class="kpi"><div class="v" id="kApports">—</div><div class="l">Apports internes (W)</div></div>
+        <div class="kpi hl"><div class="v" id="kNet">—</div><div class="l">Besoin net chauffage (W)</div></div>
+      </div>
+
+      <table class="dep-table">
+        <thead>
+          <tr><th>Paroi</th><th>Surface</th><th>U</th><th>Déperdition</th><th>Part</th></tr>
+        </thead>
+        <tbody id="depBody"></tbody>
+      </table>
+
+      <div class="verdict ok" id="verdictDep">—</div>
+
+      <p class="legend">
+        <b>Méthode</b> : déperdition = Σ (U × S × ΔT) + 0,34 × Q<sub>vent</sub> × ΔT (ventilation).<br>
+        ΔT = T<sub>intérieure</sub> − T<sub>extérieure de base</sub>. Le résultat est la puissance de chauffage
+        à installer pour la pièce par froid extrême (dimensionnement).<br>
+        Ordres de grandeur ratio : &lt; 50 W/m² bâtiment très isolé · 50–80 W/m² correct · &gt; 100 W/m² isolation faible.<br>
+        Calcul simplifié : ne tient pas compte des ponts thermiques, de l'inertie, des apports gratuits (soleil, occupants)
+        ni des déperditions vers les locaux chauffés (parois internes).
+      </p>
+    </div>
+  </div>
+  </div>
+
+  <!-- ============ SOUS-PAGE : CUMUL / SYNTHÈSE ============ -->
+  <div class="subpage" id="depSynthese">
+    <div class="card">
+      <h2>Cumul des déperditions — toutes pièces</h2>
+      <div class="kpis">
+        <div class="kpi hl"><div class="v" id="cNb">—</div><div class="l">Pièces enregistrées</div></div>
+        <div class="kpi hl"><div class="v" id="cTotal">—</div><div class="l">Déperditions totales (W)</div></div>
+        <div class="kpi"><div class="v" id="cTotalKw">—</div><div class="l">Puissance chauffage (kW)</div></div>
+        <div class="kpi"><div class="v" id="cTrans">—</div><div class="l">Total transmission (W)</div></div>
+        <div class="kpi"><div class="v" id="cVent">—</div><div class="l">Total ventilation (W)</div></div>
+        <div class="kpi"><div class="v" id="cSurf">—</div><div class="l">Surface chauffée (m²)</div></div>
+        <div class="kpi"><div class="v" id="cRatio">—</div><div class="l">Ratio global (W/m²)</div></div>
+        <div class="kpi"><div class="v" id="cDT">—</div><div class="l">ΔT de base (K)</div></div>
+        <div class="kpi"><div class="v" id="cApports">—</div><div class="l">Total apports internes (W)</div></div>
+        <div class="kpi hl"><div class="v" id="cNet">—</div><div class="l">Besoin net total (W)</div></div>
+      </div>
+
+      <table class="dep-table">
+        <thead>
+          <tr><th>N°</th><th>Pièce</th><th>Transmission</th><th>Ventilation</th><th>Total</th><th>Apports</th><th>Net</th><th>Surface</th><th>W/m²</th><th>Part</th><th></th></tr>
+        </thead>
+        <tbody id="cumulBody"></tbody>
+      </table>
+
+      <div class="verdict" id="verdictCumul">—</div>
+
+      <button id="btnExport" class="btn-secondary">Exporter le tableau en CSV</button>
+
+      <p class="legend">
+        <b>Cumul</b> : chaque pièce ajoutée depuis l'onglet de saisie est listée ici avec ses déperditions par
+        transmission et par ventilation, sa surface (plancher bas) et son ratio W/m².<br>
+        Le total sert au dimensionnement de la source de chaleur (générateur, pompe à chaleur) pour l'ensemble
+        des pièces saisies, par température extérieure de base.<br>
+        Ordres de grandeur ratio global : &lt; 50 W/m² bâtiment très isolé · 50–80 W/m² correct · &gt; 100 W/m² isolation faible.
+      </p>
+    </div>
+  </div>
+
+  </section>
+
+
+  <!-- ================================================= -->
+  <!-- PAGE 5 : HYGROMÉTRIE -->
+  <!-- ================================================= -->
+  <section class="page" id="pHygro">
+    <div class="grid">
+      <div class="card">
+        <h2>Paramètres d'entrée</h2>
+        <label>Température sèche (°C)</label>
+        <input type="number" id="hyT" value="20" step="0.1">
+
+        <label>Humidité relative (%)</label>
+        <input type="number" id="hyHR" value="50" min="0" max="100" step="1">
+
+        <label>Pression atmosphérique (kPa)</label>
+        <input type="number" id="hyP" value="101.325" min="50" max="110" step="0.1">
+        <div class="hint">101.325 kPa au niveau de la mer ; ~90 kPa à 1000 m ; ~84 kPa à 1500 m</div>
+
+        <div class="err" id="errHygro"></div>
+      </div>
+
+      <div class="card">
+        <h2>Résultats</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="kPvs">—</div><div class="l">Pression saturante (kPa)</div></div>
+          <div class="kpi"><div class="v" id="kPv">—</div><div class="l">Pression partielle vapeur (kPa)</div></div>
+          <div class="kpi"><div class="v" id="kX">—</div><div class="l">Humidité absolue (g/kg air sec)</div></div>
+          <div class="kpi hl"><div class="v" id="kRos">—</div><div class="l">Point de rosée (°C)</div></div>
+          <div class="kpi hl"><div class="v" id="kH">—</div><div class="l">Enthalpie (kJ/kg air sec)</div></div>
+          <div class="kpi"><div class="v" id="kVM">—</div><div class="l">Volume massique (m³/kg air sec)</div></div>
+        </div>
+
+        <div class="verdict" id="verdictHygro">—</div>
+
+        <p class="legend">
+          <b>Formules</b> : p<sub>vs</sub> par corrélation Magnus-type (sur glace < 0 °C, sur eau ≥ 0 °C) ;
+          x = 0.622·p<sub>v</sub>/(p − p<sub>v</sub>) ; h = 1.006·t + x·(2501 + 1.86·t) ;
+          point de rosée par inversion de Magnus ; v<sub>sp</sub> = R·(t+273.15)·(1+1.6078·x)/p.
+          <br>
+          <b>Confort</b> : HR 40–60 % recommandée en occupation ; &lt; 30 % air sec (gêne, électricité statique),
+          &gt; 70 % risque de condensation et développement de moisissures. Une paroi dont la température
+          de surface passe sous le point de rosée provoque de la condensation superficielle.
+        </p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============ NAVIGATION ============ */
+const tabs = document.querySelectorAll(".tab");
+const pages = document.querySelectorAll(".page");
+tabs.forEach(t => t.addEventListener("click", () => {
+  tabs.forEach(x => x.classList.remove("active"));
+  pages.forEach(p => p.classList.remove("active"));
+  t.classList.add("active");
+  document.getElementById(t.dataset.page).classList.add("active");
+}));
+
+/* ================================================= */
+/* PAGE 1 : BRUIT DE RÉGÉNÉRATION */
+/* ================================================= */
+const F = [63,125,250,500,1000,2000,4000,8000];
+const K = [-8,-6,-4,-3,-4,-7,-12,-18];
+const CA = [-26.2,-16.1,-8.6,-3.2,0,1.2,1.0,-1.1];
+
+const $ = id => document.getElementById(id);
+
+function compute(){
+  const Q = parseFloat($("q").value);
+  const vReq = parseFloat($("v").value);
+  const shape = $("shape").value;
+  const err = $("errDep");
+  err.style.display = "none";
+
+  if(!isFinite(Q) || !isFinite(vReq) || Q<=0 || vReq<=0){
+    err.textContent = "Veuillez saisir un débit et une vitesse positifs.";
+    err.style.display = "block";
+    return;
+  }
+
+  const Qs = Q/3600;
+  let S, v, dim, dimLbl;
+
+  if(shape === "round"){
+    const d = Math.sqrt(4*Qs/(Math.PI*vReq));
+    S = Math.PI*d*d/4;
+    v = vReq;
+    dim = d;
+    dimLbl = "Diamètre (m)";
+  } else {
+    const a = parseFloat($("a").value), b = parseFloat($("b").value);
+    if(!isFinite(a)||!isFinite(b)||a<=0||b<=0){
+      err.textContent = "Dimensions rectangulaires invalides.";
+      err.style.display = "block";
+      return;
+    }
+    S = a*b;
+    v = Qs/S;
+    dim = 1.3*Math.pow(a*b,0.625)/Math.pow((a+b)/2,0.25);
+    dimLbl = "Ø équivalent (m)";
+  }
+
+  const Lw = K.map(k => k + 10*Math.log10(S) + 60*Math.log10(v));
+  const LwA = Lw.map((x,i) => x + CA[i]);
+  const global = 10*Math.log10(LwA.reduce((s,x)=>s+Math.pow(10,x/10),0));
+
+  $("kDim").textContent = dim.toFixed(3);
+  $("kDimLbl").textContent = dimLbl;
+  $("kS").textContent = S.toFixed(4);
+  $("kVr").textContent = v.toFixed(2);
+  $("kLwa").textContent = global.toFixed(1);
+
+  $("rLw").innerHTML  = "<th>L<sub>W</sub> (dB)</th>"   + Lw.map(x=>`<td>${x.toFixed(1)}</td>`).join("");
+  $("rLwa").innerHTML = "<th>L<sub>WA</sub> (dB(A))</th>" + LwA.map(x=>`<td>${x.toFixed(1)}</td>`).join("");
+
+  const chart = $("chart");
+  chart.innerHTML = "";
+  const maxA = Math.max(...LwA, 1);
+  F.forEach((f,i)=>{
+    const col = document.createElement("div");
+    col.className = "col";
+    const bar = document.createElement("div");
+    bar.className = "bar-el";
+    bar.style.height = Math.max(2, (LwA[i]/maxA)*100) + "%";
+    const lbl = document.createElement("div");
+    lbl.className = "f";
+    lbl.textContent = f >= 1000 ? (f/1000)+"k" : f;
+    col.appendChild(bar); col.appendChild(lbl);
+    chart.appendChild(col);
+  });
+
+  const vd = $("verdict");
+  let cls, txt;
+  if(global <= 35){ cls="ok";  txt = `✔ ${global.toFixed(1)} dB(A) — Compatible confort résidentiel (≤ 35 dB(A))`; }
+  else if(global <= 45){ cls="warn"; txt = `⚠ ${global.toFixed(1)} dB(A) — Acceptable tertiaire ; prévoir atténuation pour le résidentiel`; }
+  else { cls="bad"; txt = `✘ ${global.toFixed(1)} dB(A) — Niveau élevé : réduire la vitesse ou la section, ou ajouter un silencieux`; }
+  vd.className = "verdict show " + cls;
+  vd.textContent = txt;
+}
+
+["q","v","shape","a","b"].forEach(id=>{
+  $(id).addEventListener("input", compute);
+  $(id).addEventListener("change", compute);
+});
+$("shape").addEventListener("change", ()=>{
+  $("rectInputs").style.display = $("shape").value === "rect" ? "grid" : "none";
+  compute();
+});
+
+compute();
+
+/* ================================================= */
+/* PAGE 2 : GAINES DE VENTILATION */
+/* ================================================= */
+function calculerGaines(){
+  const err = $("errGaines");
+  err.style.display = "none";
+
+  const debit = parseFloat($("debit").value);
+  const forme = $("forme").value;
+  const materiau = $("materiau").value;
+
+  let section, diamHyd, diamLbl;
+
+  if(forme === "circ"){
+    const dMm = parseFloat($("diamNorm").value);
+    if (isNaN(debit) || debit <= 0 || isNaN(dMm) || dMm <= 0) {
+      err.textContent = "Veuillez entrer un débit positif et sélectionner un diamètre.";
+      err.style.display = "block";
+      return;
+    }
+    const d = dMm / 1000;
+    section = Math.PI * d * d / 4;
+    diamHyd = d;
+    diamLbl = (dMm.toFixed(0));
+  } else {
+    const hauteur = parseFloat($("hauteur").value);
+    const largeur = parseFloat($("largeur").value);
+    if (isNaN(debit) || isNaN(hauteur) || isNaN(largeur) || debit <= 0 || hauteur <= 0 || largeur <= 0) {
+      err.textContent = "Veuillez entrer des valeurs valides et positives.";
+      err.style.display = "block";
+      return;
+    }
+    const h = hauteur / 100;
+    const l = largeur / 100;
+    section = h * l;
+    diamHyd = 1.3 * Math.pow(h * l, 0.625) / Math.pow(h + l, 0.25);
+    diamLbl = (diamHyd * 100).toFixed(1);
+  }
+
+  let lambda;
+  switch (materiau) {
+    case "galva":          lambda = 0.02;  break;
+    case "inox":           lambda = 0.018; break;
+    case "pps":            lambda = 0.022; break;
+    case "souple-canele":  lambda = 0.025; break;
+    default:               lambda = 0.02;
+  }
+
+  const rho = 1.2;
+  const debitVolumique = debit / 3600;
+  const vitesse = debitVolumique / section;
+  const perteCharge = lambda * (1 / diamHyd) * (rho * Math.pow(vitesse, 2) / 2);
+
+  const Kc = 10;
+  const Lw = 10 * Math.log10(rho * Math.pow(vitesse, 3) * section) + Kc;
+
+  $("resDiam").textContent = diamLbl;
+  $("resVitesse").textContent = vitesse.toFixed(2);
+  $("resPerte").textContent = perteCharge.toFixed(2);
+  $("resBruit").textContent = Lw.toFixed(2);
+
+  const vd = $("verdictGaines");
+  let cls, txt;
+  if (perteCharge <= 3){
+    cls = "ok"; txt = `✔ Perte de charge ${perteCharge.toFixed(2)} Pa/m — faible, installation économe`;
+  } else if (perteCharge <= 6){
+    cls = "warn"; txt = `⚠ Perte de charge ${perteCharge.toFixed(2)} Pa/m — moyenne, vérifier le bilan du réseau`;
+  } else {
+    cls = "bad"; txt = `✘ Perte de charge ${perteCharge.toFixed(2)} Pa/m — élevée : augmenter la section ou réduire la vitesse`;
+  }
+  vd.className = "verdict show " + cls;
+  vd.textContent = txt + ` · Bruit estimé ${Lw.toFixed(1)} dB(A)`;
+}
+
+$("forme").addEventListener("change", function(){
+  const circ = this.value === "circ";
+  $("circInputs").style.display = circ ? "block" : "none";
+  $("rectInputsGaines").style.display = circ ? "none" : "grid";
+});
+["debit","diamNorm","hauteur","largeur","materiau","forme"].forEach(id=>{
+  $(id).addEventListener("input", calculerGaines);
+  $(id).addEventListener("change", calculerGaines);
+});
+
+/* ================================================= */
+/* PAGE 3 : BATTERIE CTA */
+/* ================================================= */
+$("debitAirMH").addEventListener("input", function () {
+  const debitMH = parseFloat(this.value) || 0;
+  const debitMS = debitMH / 3600;
+  $("debitAirMSDisplay").textContent = `${debitMS.toFixed(4)} m³/s`;
+});
+
+function calculerPuissance(){
+  const err = $("errCta");
+  err.style.display = "none";
+
+  const tempAller = parseFloat($("tempAller").value);
+  const tempRetour = parseFloat($("tempRetour").value);
+  const tempAirEntree = parseFloat($("tempAirEntree").value);
+  const tempAirSouhaitee = parseFloat($("tempAirSouhaitee").value);
+  const debitAirMH = parseFloat($("debitAirMH").value);
+
+  if (isNaN(tempAller) || isNaN(tempRetour) || isNaN(tempAirEntree) || isNaN(tempAirSouhaitee) || isNaN(debitAirMH)) {
+    err.textContent = "Veuillez remplir tous les champs avec des valeurs numériques.";
+    err.style.display = "block";
+    return;
+  }
+
+  const debitAir = debitAirMH / 3600;
+  const rho = 1.2;
+  const cp = 1005;
+  const debitMassique = debitAir * rho;
+  const deltaT = Math.abs(tempAirEntree - tempAirSouhaitee);
+  const puissance = debitMassique * cp * deltaT;
+
+  $("kDeltaT").textContent = deltaT.toFixed(1);
+  $("kDebitM").textContent = debitMassique.toFixed(3);
+  $("kPw").textContent = puissance.toFixed(0);
+  $("kPk").textContent = (puissance / 1000).toFixed(2);
+
+  const vitesses = [1, 1.5, 2, 2.5];
+  let secHtml = "", dimHtml = "";
+  for(const vf of vitesses){
+    const S = debitAir / vf;
+    const cote = Math.ceil(Math.sqrt(S) * 100);
+    secHtml += `<td>${S.toFixed(3)}</td>`;
+    dimHtml += `<td>${cote} × ${cote} cm</td>`;
+  }
+  $("ctaSecRow").innerHTML = "<th>Section frontale (m²)</th>" + secHtml;
+  $("ctaDimRow").innerHTML = "<th>Dimensions (cm)</th>" + dimHtml;
+
+  const vd = $("verdictCta");
+  let cls, txt;
+  if (puissance <= 0){
+    cls = "warn"; txt = "ΔT nul — aucune puissance nécessaire";
+  } else if (puissance < 10000){
+    cls = "ok"; txt = `Puissance nécessaire : ${puissance.toFixed(2)} W (${(puissance/1000).toFixed(2)} kW) — batterie de taille modeste`;
+  } else if (puissance < 50000){
+    cls = "warn"; txt = `Puissance nécessaire : ${puissance.toFixed(2)} W (${(puissance/1000).toFixed(2)} kW) — batterie standard`;
+  } else {
+    cls = "bad"; txt = `Puissance nécessaire : ${puissance.toFixed(2)} W (${(puissance/1000).toFixed(2)} kW) — puissance élevée, envisager plusieurs batteries`;
+  }
+  vd.className = "verdict show " + cls;
+  vd.textContent = txt;
+}
+
+/* ================================================= */
+/* PAGE 4 : DÉPERDITIONS PIÈCE */
+/* ================================================= */
+
+const pieces = [];
+
+/* ===== Apports internes ===== */
+const APPAREILS = [
+  {id:"pers",    label:"Personne (travail léger, assis)", w:100},
+  {id:"persact", label:"Personne (activité modérée)",     w:150},
+  {id:"pcfixe",  label:"PC fixe (unité centrale + écran)", w:150},
+  {id:"pclap",   label:"PC portable",                    w:40},
+  {id:"ecran",   label:"Écran / moniteur",               w:30},
+  {id:"imprim",  label:"Imprimante laser (moyenne)",     w:300},
+  {id:"copieur", label:"Photocopieur",                   w:400},
+  {id:"serveur", label:"Serveur / baie informatique",    w:500},
+  {id:"tv",      label:"Téléviseur",                     w:100},
+  {id:"videopr", label:"Vidéoprojecteur",                w:300},
+  {id:"led",     label:"Luminaire LED",                  w:15},
+  {id:"fluo",    label:"Luminaire fluorescent (tube)",   w:36},
+  {id:"halo",    label:"Luminaire halogène / incandescent", w:50},
+  {id:"frigo",   label:"Réfrigérateur / congélateur (moyenne)", w:100},
+  {id:"congel",  label:"Coffre de congélation",          w:150},
+  {id:"four",    label:"Four (utilisation moyenne)",     w:200},
+  {id:"plaque",  label:"Plaque de cuisson (moyenne)",    w:300},
+  {id:"cafet",   label:"Machine à café",                w:800},
+  {id:"bouill",  label:"Bouilloire / micro-ondes",      w:1000},
+  {id:"moteur",  label:"Moteur (pompe, ventilateur)",   w:100},
+  {id:"elev",    label:"Ascenseur / monte-charge (moteur, moyenne)", w:700},
+  {id:"aquarium", label:"Aquarium",                      w:150},
+  {id:"autre",   label:"Autre (saisir la puissance)",    w:0},
+];
+
+let apports = [{id:"pers", w:100, q:1}];
+
+function sommeApports(list){
+  return list.reduce((s,a)=>s + (a.w||0) * (a.q||0), 0);
+}
+
+function addApport(){
+  apports.push({id:"autre", w:0, q:1});
+  renderApports();
+}
+
+function delApport(i){
+  apports.splice(i,1);
+  if(apports.length === 0){ apports.push({id:"autre", w:0, q:1}); }
+  renderApports();
+}
+
+function renderApports(){
+  const body = $("apportsBody");
+  body.innerHTML = apports.map((a,i)=>{
+    const opts = APPAREILS.map(app=>`<option value="${app.id}" ${app.id===a.id?"selected":""}>${app.label}</option>`).join("");
+    return `<tr>
+      <td><select data-apid="${i}">${opts}</select></td>
+      <td><input type="number" data-apw="${i}" value="${a.w}" min="0" step="10" style="width:90px"></td>
+      <td><input type="number" data-apq="${i}" value="${a.q}" min="0" step="1" style="width:70px"></td>
+      <td><button class="btn-small btn-danger" data-apdel="${i}">✕</button></td>
+    </tr>`;
+  }).join("");
+
+  body.querySelectorAll("[data-apid]").forEach(sel=>{
+    sel.addEventListener("change", ()=>{
+      const i = parseInt(sel.dataset.apid,10);
+      const app = APPAREILS.find(x=>x.id===sel.value);
+      apports[i].id = sel.value;
+      apports[i].w = app ? app.w : 0;
+      renderApports();
+      computeDep();
+    });
+  });
+  body.querySelectorAll("[data-apw]").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      apports[parseInt(inp.dataset.apw,10)].w = parseFloat(inp.value)||0;
+      computeDep();
+    });
+  });
+  body.querySelectorAll("[data-apq]").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      apports[parseInt(inp.dataset.apq,10)].q = parseFloat(inp.value)||0;
+      computeDep();
+    });
+  });
+  body.querySelectorAll("[data-apdel]").forEach(btn=>{
+    btn.addEventListener("click", ()=>delApport(parseInt(btn.dataset.apdel,10)));
+  });
+}
+
+function computeDep(){
+  const err = $("errDep");
+  err.style.display = "none";
+
+  const tInt = parseFloat($("tInt").value);
+  const tExt = parseFloat($("tExt").value);
+  const qAer = parseFloat($("qAer").value) || 0;
+
+  if(!isFinite(tInt) || !isFinite(tExt)){
+    err.textContent = "Températures invalides.";
+    err.style.display = "block";
+    return;
+  }
+  if(tInt <= tExt){
+    err.textContent = "La température intérieure doit être supérieure à la température extérieure.";
+    err.style.display = "block";
+    return;
+  }
+
+  const dT = tInt - tExt;
+
+  const parois = [
+    {label:"Murs extérieurs",  s:$("murS").value,  u:$("murU").value},
+    {label:"Plancher bas",     s:$("solS").value,  u:$("solU").value},
+    {label:"Plafond / toit",   s:$("toitS").value, u:$("toitU").value},
+    {label:"Fenêtres / baies", s:$("fenS").value,  u:$("fenU").value},
+  ];
+
+  let trans = 0;
+  const lignes = [];
+  for(const p of parois){
+    const S = parseFloat(p.s) || 0;
+    const U = parseFloat(p.u) || 0;
+    const d = U * S * dT;
+    if(S > 0 && U > 0){
+      trans += d;
+      lignes.push({label:p.label, S, U, d});
+    }
+  }
+
+  if(trans === 0 && qAer === 0){
+    err.textContent = "Saisissez au moins une paroi ou un débit de ventilation.";
+    err.style.display = "block";
+    return;
+  }
+
+  const vent = 0.34 * qAer * dT;
+  const total = trans + vent;
+
+  const surfPiece = Math.max(
+    parseFloat($("solS").value) || 0,
+    parseFloat($("toitS").value) || 0
+  );
+
+  $("kTotal").textContent   = total.toFixed(0);
+  $("kTotalKw").textContent = (total/1000).toFixed(2);
+  $("kTrans").textContent   = trans.toFixed(0);
+  $("kVent").textContent    = vent.toFixed(0);
+  $("kRatio").textContent   = surfPiece > 0 ? (total/surfPiece).toFixed(1) : "—";
+  $("kDt").textContent      = dT.toFixed(1);
+
+  const apportsW = sommeApports(apports);
+  const net = total - apportsW;
+  $("kApports").textContent = apportsW.toFixed(0);
+  $("kNet").textContent    = net.toFixed(0);
+
+  const maxD = Math.max(...lignes.map(l=>l.d), vent, 1);
+  const fmtBar = v => `<span class="bar" style="width:${Math.max(2,(v/maxD)*40)}px"></span>`;
+
+  let html = "";
+  for(const l of lignes){
+    const part = total > 0 ? (l.d/total*100) : 0;
+    html += `<tr><th>${l.label}</th><td class="num">${l.S.toFixed(1)} m²</td><td class="num">${l.U.toFixed(2)}</td><td class="num">${fmtBar(l.d)} ${l.d.toFixed(0)} W</td><td class="num">${part.toFixed(0)}%</td></tr>`;
+  }
+  if(vent > 0){
+    const part = (vent/total*100);
+    html += `<tr><th>Renouvellement d'air</th><td class="num">${qAer.toFixed(0)} m³/h</td><td class="num">0,34</td><td class="num">${fmtBar(vent)} ${vent.toFixed(0)} W</td><td class="num">${part.toFixed(0)}%</td></tr>`;
+  }
+  $("depBody").innerHTML = html;
+
+  const vd = $("verdictDep");
+  let cls, txt;
+  if(surfPiece > 0){
+    const r = total/surfPiece;
+    if(r < 50)      { cls="ok";  txt = `✔ ${r.toFixed(1)} W/m² — pièce très bien isolée : puissance de chauffage modérée`; }
+    else if(r <= 80){ cls="warn"; txt = `⚠ ${r.toFixed(1)} W/m² — isolation correcte, dimensionnement standard`; }
+    else            { cls="bad"; txt = `✘ ${r.toFixed(1)} W/m² — isolation faible : envisager d'améliorer l'isolation ou réduire les débits`; }
+  } else {
+    cls="ok"; txt = `Puissance à installer : ${total.toFixed(0)} W (${(total/1000).toFixed(2)} kW)`;
+  }
+
+  const num = parseInt($("pieceNum").value, 10);
+  const existe = pieces.find(p => p.num === num);
+  if(existe){
+    txt += ` · Pièce n° ${num} déjà enregistrée : « Ajouter au cumul » la mettra à jour`;
+  }
+  vd.className = "verdict show " + cls;
+  vd.textContent = txt;
+}
+
+function ajouterPiece(){
+  const err = $("errDep");
+  err.style.display = "none";
+
+  const num = parseInt($("pieceNum").value, 10);
+  if(!isFinite(num) || num < 1){
+    err.textContent = "Saisissez un numéro de pièce (≥ 1).";
+    err.style.display = "block";
+    return;
+  }
+
+  computeDep();
+  if(err.style.display === "block"){ return; }
+
+  const tInt = parseFloat($("tInt").value);
+  const tExt = parseFloat($("tExt").value);
+  const qAer = parseFloat($("qAer").value) || 0;
+  const dT = tInt - tExt;
+
+  let trans = 0;
+  for(const id of ["murS","solS","toitS","fenS"]){
+    const sid = id.replace("S","U");
+    const S = parseFloat($(id).value) || 0;
+    const U = parseFloat($(sid).value) || 0;
+    if(S > 0 && U > 0) trans += U * S * dT;
+  }
+  const vent = 0.34 * qAer * dT;
+  const total = trans + vent;
+  const surf = Math.max(parseFloat($("solS").value) || 0, parseFloat($("toitS").value) || 0);
+
+  const piece = {
+    num,
+    nom: $("pieceNom").value.trim() || `Pièce ${num}`,
+    trans, vent, total, surf,
+    tInt, tExt, qAer,
+    apports: apports.map(a=>({
+      id:a.id,
+      label:(APPAREILS.find(x=>x.id===a.id)||{label:"Autre"}).label,
+      w:a.w||0, q:a.q||0
+    })),
+    apportsW: sommeApports(apports),
+    net: total - sommeApports(apports),
+    murS: parseFloat($("murS").value)||0, murU: parseFloat($("murU").value)||0,
+    solS: parseFloat($("solS").value)||0, solU: parseFloat($("solU").value)||0,
+    toitS: parseFloat($("toitS").value)||0, toitU: parseFloat($("toitU").value)||0,
+    fenS: parseFloat($("fenS").value)||0, fenU: parseFloat($("fenU").value)||0,
+  };
+
+  const i = pieces.findIndex(p => p.num === num);
+  if(i >= 0){ pieces[i] = piece; }
+  else { pieces.push(piece); pieces.sort((a,b)=>a.num-b.num); }
+
+  renderCumul();
+  showSubPage("depSynthese");
+}
+
+function supprimerPiece(num){
+  const i = pieces.findIndex(p => p.num === num);
+  if(i >= 0){ pieces.splice(i,1); renderCumul(); }
+}
+
+function renderCumul(){
+  const attr = $("piecesAttr");
+  if(pieces.length === 0){
+    attr.innerHTML = "<b>Numéros déjà attribués :</b> aucun pour l'instant";
+  } else {
+    const nums = pieces.map(p=>`<b>n° ${p.num}</b> (${p.nom})`).join(" · ");
+    attr.innerHTML = "<b>Numéros déjà attribués :</b> " + nums;
+  }
+
+  $("cNb").textContent = pieces.length || "—";
+
+  if(pieces.length === 0){
+    ["cTotal","cTotalKw","cTrans","cVent","cSurf","cRatio","cDT","cApports","cNet"].forEach(id=>$(id).textContent="—");
+    $("cumulBody").innerHTML = "";
+    const vd = $("verdictCumul");
+    vd.className = "verdict";
+    vd.textContent = "Aucune pièce enregistrée : ajoutez des pièces depuis l'onglet de saisie.";
+    return;
+  }
+
+  const trans = pieces.reduce((s,p)=>s+p.trans, 0);
+  const vent  = pieces.reduce((s,p)=>s+p.vent, 0);
+  const total = trans + vent;
+  const surf  = pieces.reduce((s,p)=>s+p.surf, 0);
+  const dT = pieces[0].tInt - pieces[0].tExt;
+
+  $("cTotal").textContent   = total.toFixed(0);
+  $("cTotalKw").textContent = (total/1000).toFixed(2);
+  $("cTrans").textContent   = trans.toFixed(0);
+  $("cVent").textContent    = vent.toFixed(0);
+  $("cSurf").textContent    = surf > 0 ? surf.toFixed(1) : "—";
+  $("cRatio").textContent   = surf > 0 ? (total/surf).toFixed(1) : "—";
+  $("cDT").textContent      = dT.toFixed(1);
+
+  const apportsTot = pieces.reduce((s,p)=>s+(p.apportsW||0), 0);
+  const netTot = total - apportsTot;
+  $("cApports").textContent = apportsTot.toFixed(0);
+  $("cNet").textContent    = netTot.toFixed(0);
+
+  let html = "";
+  for(const p of pieces){
+    const part = total > 0 ? (p.total/total*100) : 0;
+    const r = p.surf > 0 ? (p.total/p.surf).toFixed(1) : "—";
+    const ap = p.apportsW || 0;
+    const net = p.net !== undefined ? p.net : p.total - ap;
+    html += `<tr><th>${p.num}</th><td>${p.nom}</td><td class="num">${p.trans.toFixed(0)} W</td><td class="num">${p.vent.toFixed(0)} W</td><td class="num">${p.total.toFixed(0)} W</td><td class="num">${ap.toFixed(0)} W</td><td class="num">${net.toFixed(0)} W</td><td class="num">${p.surf > 0 ? p.surf.toFixed(1)+" m²" : "—"}</td><td class="num">${r}</td><td class="num">${part.toFixed(0)}%</td><td><button class="btn-small btn-danger" data-del="${p.num}">✕</button></td></tr>`;
+  }
+  $("cumulBody").innerHTML = html;
+
+  $("cumulBody").querySelectorAll("[data-del]").forEach(b=>{
+    b.addEventListener("click", ()=>supprimerPiece(parseInt(b.dataset.del,10)));
+  });
+
+  const vd = $("verdictCumul");
+  let cls, txt;
+  if(surf > 0){
+    const rg = total/surf;
+    if(rg < 50)      { cls="ok";  txt = `✔ ${rg.toFixed(1)} W/m² au global — bâtiment très bien isolé`; }
+    else if(rg <= 80){ cls="warn"; txt = `⚠ ${rg.toFixed(1)} W/m² au global — isolation correcte, dimensionnement standard`; }
+    else            { cls="bad"; txt = `✘ ${rg.toFixed(1)} W/m² au global — isolation faible : envisager d'améliorer l'isolation ou réduire les débits`; }
+  } else {
+    cls="ok"; txt = `Puissance totale à installer : ${total.toFixed(0)} W (${(total/1000).toFixed(2)} kW)`;
+  }
+  if(apportsTot > 0){
+    txt += ` · Besoin net après apports internes : ${netTot.toFixed(0)} W`;
+  }
+  vd.className = "verdict show " + cls;
+  vd.textContent = txt;
+}
+
+function exportCSV(){
+  if(pieces.length === 0){ return; }
+  const esc = s => `"${String(s).replace(/"/g,'""')}"`;
+  let csv = "N°;Pièce;Transmission (W);Ventilation (W);Total (W);Apports (W);Net (W);Surface (m²);W/m²;T int (°C);T ext (°C)\n";
+  for(const p of pieces){
+    const r = p.surf > 0 ? (p.total/p.surf).toFixed(1) : "";
+    const ap = p.apportsW || 0;
+    csv += [p.num, esc(p.nom), p.trans.toFixed(0), p.vent.toFixed(0), p.total.toFixed(0), ap.toFixed(0), (p.total-ap).toFixed(0), p.surf.toFixed(1), r, p.tInt, p.tExt].join(";") + "\n";
+  }
+  const trans = pieces.reduce((s,p)=>s+p.trans,0);
+  const vent = pieces.reduce((s,p)=>s+p.vent,0);
+  const surf = pieces.reduce((s,p)=>s+p.surf,0);
+  const apportsTot = pieces.reduce((s,p)=>s+(p.apportsW||0), 0);
+  csv += ["", esc("TOTAL"), trans.toFixed(0), vent.toFixed(0), (trans+vent).toFixed(0), apportsTot.toFixed(0), (trans+vent-apportsTot).toFixed(0), surf.toFixed(1), surf>0?((trans+vent)/surf).toFixed(1):"", "", ""].join(";") + "\n";
+  const blob = new Blob(["\ufeff" + csv], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "deperditions-pieces.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function showSubPage(id){
+  document.querySelectorAll("#depSubtabs .subtab").forEach(t=>t.classList.toggle("active", t.dataset.sub===id));
+  document.querySelectorAll("#pDep .subpage").forEach(p=>p.classList.toggle("active", p.id===id));
+}
+
+document.querySelectorAll("#depSubtabs .subtab").forEach(t=>{
+  t.addEventListener("click", ()=>showSubPage(t.dataset.sub));
+});
+$("btnExport").addEventListener("click", exportCSV);
+
+["tInt","tExt","murS","murU","solS","solU","toitS","toitU","fenS","fenU","qAer","pieceNum","pieceNom"].forEach(id=>{
+  $(id).addEventListener("input", computeDep);
+  $(id).addEventListener("change", computeDep);
+});
+
+renderApports();
+computeDep();
+renderCumul();
+
+/* ================================================= */
+/* PAGE 5 : HYGROMÉTRIE */
+/* ================================================= */
+const MAGNUS_EAU  = {a:17.625, b:243.04};
+const MAGNUS_GLACE = {a:22.587, b:273.86};
+
+function pSat(t){
+  const c = t >= 0 ? MAGNUS_EAU : MAGNUS_GLACE;
+  return 0.6112 * Math.exp(c.a * t / (c.b + t));
+}
+
+function rosee(pv){
+  const ln = Math.log(pv / 0.6112);
+  const c = (pv / 0.6112) >= 1 ? MAGNUS_EAU : MAGNUS_GLACE;
+  return c.b * ln / (c.a - ln);
+}
+
+function computeHygro(){
+  const err = $("errHygro");
+  err.style.display = "none";
+
+  const t  = parseFloat($("hyT").value);
+  const hr = parseFloat($("hyHR").value);
+  const p  = parseFloat($("hyP").value);
+
+  if (isNaN(t) || isNaN(hr) || isNaN(p) || hr < 0 || hr > 100 || p <= 0) {
+    err.textContent = "Saisir une température, une HR entre 0 et 100 % et une pression positive.";
+    err.style.display = "block";
+    return;
+  }
+
+  const pvs = pSat(t);
+  const pv  = pvs * hr / 100;
+  const x   = 0.622 * pv / (p - pv);
+  const tr  = rosee(pv);
+  const h   = 1.006 * t + x * (2501 + 1.86 * t);
+  const vsp = 0.287042 * (t + 273.15) * (1 + 1.6078 * x) / p;
+
+  $("kPvs").textContent = pvs.toFixed(3);
+  $("kPv").textContent  = pv.toFixed(3);
+  $("kX").textContent   = (x * 1000).toFixed(2);
+  $("kRos").textContent  = tr.toFixed(1);
+  $("kH").textContent    = h.toFixed(2);
+  $("kVM").textContent   = vsp.toFixed(3);
+
+  const vd = $("verdictHygro");
+  let cls, txt;
+  if (hr >= 40 && hr <= 60) {
+    cls = "ok";
+    txt = `✔ HR ${hr.toFixed(0)} % — zone de confort recommandée (40–60 %)`;
+  } else if (hr < 40) {
+    cls = hr < 30 ? "bad" : "warn";
+    txt = hr < 30
+      ? `✘ HR ${hr.toFixed(0)} % — air très sec : gêne respiratoire, électricité statique ; envisager un humidificateur`
+      : `⚠ HR ${hr.toFixed(0)} % — air plutôt sec, en limite basse du confort`;
+  } else if (hr <= 70) {
+    cls = "warn";
+    txt = `⚠ HR ${hr.toFixed(0)} % — humidité élevée : surveiller la condensation sur les parois froides (point de rosée ${tr.toFixed(1)} °C)`;
+  } else {
+    cls = "bad";
+    txt = `✘ HR ${hr.toFixed(0)} % — risque fort de condensation et de moisissures (point de rosée ${tr.toFixed(1)} °C)`;
+  }
+  vd.className = "verdict show " + cls;
+  vd.textContent = txt;
+}
+
+["hyT","hyHR","hyP"].forEach(id=>{
+  $(id).addEventListener("input", computeHygro);
+  $(id).addEventListener("change", computeHygro);
+});
+
+computeHygro();
+
+</script>
+</body>
+</html>
